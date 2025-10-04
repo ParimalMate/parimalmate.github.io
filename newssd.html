@@ -900,5 +900,244 @@
             }
         });
     </script>
+    <!-- ============================================ -->
+<!-- UNIVERSAL EVENT TRACKER -->
+<!-- ============================================ -->
+<script>
+// Global array to store all tracked events
+const eventLog = [];
+
+// Function to get a human-readable timestamp
+function getTimestamp() {
+    const now = new Date();
+    return now.getFullYear() + '-' + 
+           String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(now.getDate()).padStart(2, '0') + ' ' + 
+           String(now.getHours()).padStart(2, '0') + ':' + 
+           String(now.getMinutes()).padStart(2, '0') + ':' + 
+           String(now.getSeconds()).padStart(2, '0') + '.' + 
+           String(now.getMilliseconds()).padStart(3, '0');
+}
+
+// Function to identify the type of HTML element clicked
+function getElementType(element) {
+    const tagName = element.tagName.toLowerCase();
+    
+    if (tagName === 'button') return 'button';
+    if (tagName === 'a') return 'link';
+    if (tagName === 'img') return 'image';
+    if (tagName === 'input') return 'input_' + (element.type || 'text');
+    if (tagName === 'select') return 'dropdown';
+    if (tagName === 'textarea') return 'textarea';
+    if (tagName === 'canvas') return 'canvas';
+    if (tagName === 'video') return 'video';
+    if (tagName === 'audio') return 'audio';
+    if (tagName === 'label') return 'label';
+    if (tagName === 'div' && element.classList.contains('btn')) return 'div_button';
+    if (tagName === 'span' && element.classList.contains('btn')) return 'span_button';
+    
+    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div'].includes(tagName)) {
+        return 'text_' + tagName;
+    }
+    
+    return tagName;
+}
+
+// Function to get additional element details
+function getElementDetails(element) {
+    const details = {
+        id: element.id || 'no-id',
+        classes: element.className || 'no-class',
+        text: (element.innerText || element.textContent || '').substring(0, 50),
+        value: element.value || '',
+        href: element.href || '',
+        src: element.src || '',
+        name: element.name || '',
+        placeholder: element.placeholder || ''
+    };
+    
+    Object.keys(details).forEach(key => {
+        if (!details[key]) delete details[key];
+    });
+    
+    return details;
+}
+
+// Function to log an event
+function logEvent(eventType, eventObject, element, additionalData = {}) {
+    const event = {
+        timestamp: getTimestamp(),
+        type_of_event: eventType,
+        event_object: eventObject,
+        element_details: getElementDetails(element),
+        page_url: window.location.href,
+        page_title: document.title,
+        ...additionalData
+    };
+    
+    eventLog.push(event);
+    
+    console.log('═══════════════════════════════════════════════════');
+    console.log('📊 EVENT TRACKED');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('⏰ Timestamp:', event.timestamp);
+    console.log('🎯 Event Type:', event.type_of_event);
+    console.log('🔧 Event Object:', event.event_object);
+    console.log('📄 Element Details:', event.element_details);
+    if (Object.keys(additionalData).length > 0) {
+        console.log('ℹ️  Additional Data:', additionalData);
+    }
+    console.log('═══════════════════════════════════════════════════\n');
+}
+
+// Track all click events
+document.addEventListener('click', function(e) {
+    const element = e.target;
+    const elementType = getElementType(element);
+    
+    logEvent('click', elementType, element, {
+        mouse_x: e.clientX,
+        mouse_y: e.clientY,
+        screen_x: e.screenX,
+        screen_y: e.screenY
+    });
+});
+
+// Track page view when page loads
+window.addEventListener('load', function() {
+    logEvent('pageview', 'page_load', document.body, {
+        viewport_width: window.innerWidth,
+        viewport_height: window.innerHeight,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        user_agent: navigator.userAgent
+    });
+    
+    console.log('🚀 Event Tracker initialized successfully!');
+    console.log('📊 All user interactions will be logged to console.');
+});
+
+// Track form submissions
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    const formData = new FormData(form);
+    const formDataObj = {};
+    formData.forEach((value, key) => {
+        formDataObj[key] = value;
+    });
+    
+    logEvent('form_submit', 'form', form, {
+        form_data: formDataObj,
+        form_action: form.action,
+        form_method: form.method
+    });
+});
+
+// Track input changes
+document.addEventListener('change', function(e) {
+    const element = e.target;
+    const elementType = getElementType(element);
+    
+    logEvent('change', elementType, element, {
+        new_value: element.value,
+        checked: element.checked
+    });
+});
+
+// Track scroll events (throttled)
+let scrollTimeout;
+window.addEventListener('scroll', function() {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(function() {
+        logEvent('scroll', 'window_scroll', document.body, {
+            scroll_x: window.scrollX,
+            scroll_y: window.scrollY,
+            scroll_percentage: Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100)
+        });
+    }, 500);
+});
+
+// Track visibility change
+document.addEventListener('visibilitychange', function() {
+    const state = document.hidden ? 'hidden' : 'visible';
+    logEvent('visibility_change', 'page_visibility', document.body, {
+        visibility_state: state
+    });
+});
+
+// Helper functions accessible from console
+window.downloadEventLog = function() {
+    const dataStr = JSON.stringify(eventLog, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'event_log_' + new Date().getTime() + '.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    console.log('✅ Event log downloaded successfully!');
+};
+
+window.showEventSummary = function() {
+    console.log('\n╔═══════════════════════════════════════════════════╗');
+    console.log('║           EVENT TRACKING SUMMARY                  ║');
+    console.log('╚═══════════════════════════════════════════════════╝\n');
+    console.log('📊 Total Events Tracked:', eventLog.length);
+    
+    const eventCounts = {};
+    eventLog.forEach(event => {
+        eventCounts[event.type_of_event] = (eventCounts[event.type_of_event] || 0) + 1;
+    });
+    
+    console.log('\n📈 Events by Type:');
+    Object.keys(eventCounts).forEach(type => {
+        console.log(`   ${type}: ${eventCounts[type]}`);
+    });
+    
+    const objectCounts = {};
+    eventLog.forEach(event => {
+        objectCounts[event.event_object] = (objectCounts[event.event_object] || 0) + 1;
+    });
+    
+    console.log('\n🔧 Events by Object:');
+    Object.keys(objectCounts).forEach(obj => {
+        console.log(`   ${obj}: ${objectCounts[obj]}`);
+    });
+    
+    console.log('\n💡 Use downloadEventLog() to save all events as JSON');
+    console.log('💡 Use eventLog variable to access raw event data\n');
+};
+
+window.clearEventLog = function() {
+    eventLog.length = 0;
+    console.log('🗑️  Event log cleared!');
+};
+
+window.eventLog = eventLog;
+
+console.log('\n╔═══════════════════════════════════════════════════╗');
+console.log('║         EVENT TRACKER - USAGE GUIDE               ║');
+console.log('╚═══════════════════════════════════════════════════╝');
+console.log('');
+console.log('📌 Available Commands:');
+console.log('   • showEventSummary()     - Display tracking summary');
+console.log('   • downloadEventLog()     - Download events as JSON');
+console.log('   • clearEventLog()        - Clear all tracked events');
+console.log('   • eventLog               - Access raw event data');
+console.log('');
+console.log('🎯 Tracked Events:');
+console.log('   • Clicks on all elements');
+console.log('   • Page views and loads');
+console.log('   • Form submissions');
+console.log('   • Input changes');
+console.log('   • Scroll events');
+console.log('   • Tab visibility changes');
+console.log('');
+console.log('✨ All events are automatically logged below...\n');
+</script>
+</body>
+</html>
 </body>
 </html>
